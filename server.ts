@@ -1,10 +1,11 @@
- //const fastify = require('fastify')
-// const crypto = require('crypto')
-    import { eq } from 'drizzle-orm'
-    import fastify from 'fastify'
-    import { db } from './src/database/client.ts'
-    import { courses } from './src/database/schema.ts'
-
+import { fastifySwagger } from '@fastify/swagger'
+import { fastifySwaggerUi } from '@fastify/swagger-ui'
+import fastify from 'fastify'
+import { validatorCompiler, serializerCompiler, type ZodTypeProvider, jsonSchemaTransform } from 'fastify-type-provider-zod'
+import { createCoursesRoute } from './src/routes/create-courses.ts'
+import { getCourseByIdRoute } from './src/routes/get-course-by-id.ts'
+import { getCoursesRoute } from './src/routes/get-courses.ts'
+//FASTIFY framework
   const server = fastify({ 
     logger: {
       transport: {
@@ -15,69 +16,31 @@
       },
     },
    },
- })
+ }).withTypeProvider<ZodTypeProvider>()
 
-  // const courses = [
-    //{id: '1', title: 'Curso de Node.js'},
-    //{id: '2', title: 'Curso de React Native'},
-   // {id: '3', title: 'Curso de React'}
-  //]
-
-//ROTA DE LISTAGEM DE CURSOS
-  server.get('/courses', async (request, reply) => { 
-    const result = await db.select().from(courses)
-
-    return reply.send({ courses: result })
-
+ server.register(fastifySwagger, {
+  openapi: {
+    info: {
+      title: 'Desafio Node.js API',
+      version: '1.0.0',
+    }
+  },
+  transform: jsonSchemaTransform
   })
-//////////////*/////////////////////*/////////////////////
 
-//ROTA DE LISTAGEM E DETALHAMENTO DE UM ÚNICO CURSO
-  server.get('/courses/:id', async (request, reply) => {    
-  
-   type Params = {
-      id: string  
-    }
-
-    const params  = request.params as Params
-    const courseId = params.id
-
-    const result = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, courseId))
-
-    if (result.length > 0) {
-      return { course: result[0] }
-    }
-  
-   return reply.status(404).send()
-  
-})
-///////////////////////////////////////////////////////
-//ROTA DE CADASTRO DE NOVO CURSO
-  server.post('/courses', async (request, reply) => {
-   type Body = {
-      title: string  
-    }
-      
-      const body = request.body as Body
-      const courseTitle = body.title
-
-      if (!courseTitle) {
-        return reply.status(400).send({ message: 'Título obrigatóio !' })
-      }
-
-     const result = await db
-     .insert(courses)
-     .values({ title: courseTitle,})
-     .returning()
-
-   
-      
-      return reply.status(201).send({ courseID: result[0].id })
+  server.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+    
   })
-  
+
+ server.setSerializerCompiler(serializerCompiler)
+ server.setValidatorCompiler(validatorCompiler)
+
+ server.register(createCoursesRoute)
+ server.register(getCourseByIdRoute)
+ server.register(getCoursesRoute)
+
+  //ESSE CÓDIGO ABAIXO FAZ O SERVIDOR OUVIR A PORTA 3333
   server.listen({ port: 3333}).then(() => {
     console.log('HTTP server running !')
 })
